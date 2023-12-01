@@ -63,10 +63,14 @@ void Error_Handler(void);
 #define SEL_BTN_GPIO_Port GPIOA
 #define MOD_BTN_Pin GPIO_PIN_4
 #define MOD_BTN_GPIO_Port GPIOA
+#define Blinking_LED_Pin GPIO_PIN_5
+#define Blinking_LED_GPIO_Port GPIOA
 #define Buzzer_Pin GPIO_PIN_6
 #define Buzzer_GPIO_Port GPIOA
 #define SET_BTN_Pin GPIO_PIN_0
 #define SET_BTN_GPIO_Port GPIOB
+#define LED_Pin GPIO_PIN_10
+#define LED_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

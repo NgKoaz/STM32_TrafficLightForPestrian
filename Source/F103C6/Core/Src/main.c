@@ -54,12 +54,12 @@ static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
-
+void readInputAndProcessing(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-char msgg[] = "Hello guys!";
+
 /* USER CODE END 0 */
 
 /**
@@ -97,8 +97,8 @@ int main(void)
 
   inputProcessingInit(&huart1);
 
-  SCH_Add_Task(runStateFSM, 10, 10);
-
+  SCH_Add_Task(runStateFSM, 0, 10);
+  SCH_Add_Task(readInputAndProcessing, 10, 10);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -106,8 +106,6 @@ int main(void)
   while (1)
   {
 	  SCH_Dispatch_Tasks();
-	  //HAL_UART_Transmit(&huart1, (uint8_t*) msgg, strlen(msgg), 500);
-	  //HAL_Delay(500);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -243,32 +241,48 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(Buzzer_GPIO_Port, Buzzer_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, Blinking_LED_Pin|Buzzer_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : P_BTN_Pin SEL_BTN_Pin MOD_BTN_Pin */
   GPIO_InitStruct.Pin = P_BTN_Pin|SEL_BTN_Pin|MOD_BTN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : Buzzer_Pin */
-  GPIO_InitStruct.Pin = Buzzer_Pin;
+  /*Configure GPIO pins : Blinking_LED_Pin Buzzer_Pin */
+  GPIO_InitStruct.Pin = Blinking_LED_Pin|Buzzer_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(Buzzer_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : SET_BTN_Pin */
   GPIO_InitStruct.Pin = SET_BTN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(SET_BTN_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LED_Pin */
+  GPIO_InitStruct.Pin = LED_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
 }
 
 /* USER CODE BEGIN 4 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim){
 	SCH_Update();
+}
+void readInputAndProcessing(void){
+	handleSetValueButton();
+	handleModifyButton();
+	handleSelectModeButton();
+	handlePedestrianButton();
 }
 /* USER CODE END 4 */
 

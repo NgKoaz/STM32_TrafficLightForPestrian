@@ -7,9 +7,9 @@
 
 #include "input_processing.h"
 
-#define DURATION_RED_DEFAULT 		1
+#define DURATION_RED_DEFAULT 		3
 #define DURATION_AMBER_DEFAULT 		1
-#define DURATION_GREEN_DEFAULT 		1
+#define DURATION_GREEN_DEFAULT 		2
 
 #define VERTICAL 		0
 #define HORIZONTAL 		1
@@ -29,7 +29,7 @@ uint8_t adjust_duRed;
 uint8_t adjust_duAmber;
 uint8_t adjust_duGreen;
 
-char* msg;
+char msg[64];
 UART_HandleTypeDef* UART;
 
 //For blinking led when we switch in modify mode.
@@ -41,10 +41,13 @@ void resetTrafficLight(void){
 
 }
 
+void toggleLED(void){
+	HAL_GPIO_TogglePin(Blinking_LED_GPIO_Port, Blinking_LED_Pin);
+}
+
 void transmitMessage(void){
 	HAL_UART_Transmit(UART, (uint8_t *) msg, strlen(msg), 500);
 }
-
 
 void inputProcessingInit(UART_HandleTypeDef* huart)
 {
@@ -53,21 +56,25 @@ void inputProcessingInit(UART_HandleTypeDef* huart)
 	buttonState[SEL_BTN] = RELEASED;
 	buttonState[P_BTN] 	 = RELEASED;
 	blinking_counter = 1;
-	increasing_counter = INCREASING_PERIOD / CYCLE;
+	increasing_counter = INCREASING_PERIOD;
 
 	durationRed = DURATION_RED_DEFAULT;
 	durationAmber = DURATION_AMBER_DEFAULT;
 	durationGreen = DURATION_GREEN_DEFAULT;
 
-	light_counter[VERTICAL]   = durationGreen * ONE_SECOND / CYCLE;
-	light_counter[HORIZONTAL] = durationRed * ONE_SECOND / CYCLE;
+	light_counter[VERTICAL]   = durationGreen * ONE_SECOND;
+	light_counter[HORIZONTAL] = durationRed * ONE_SECOND;
 
 	runState = NORMAL_MODE;
-	ledState[VERTICAL] = RED;
-	ledState[HORIZONTAL] = GREEN;
+	ledState[VERTICAL] = GREEN;
+	ledState[HORIZONTAL] = RED;
 
 	// Take UART from main.c
 	UART = huart;
+
+	// Inform message
+	sprintf(msg, "<Pedestrian Project>\r\n");
+	transmitMessage();
 }
 
 void increaseOne(uint8_t* duration){
@@ -98,17 +105,17 @@ void changingMode(void){
 	switch(runState){
 	case NORMAL_MODE:
 		runState = MODIFY_DURATION_RED_MODE;
-		blinking_counter = HALF_SECOND / CYCLE;
+		blinking_counter = HALF_SECOND;
 		adjust_duRed = durationRed;
 		break;
 	case MODIFY_DURATION_RED_MODE:
 		runState = MODIFY_DURATION_AMBER_MODE;
-		blinking_counter = HALF_SECOND / CYCLE;
+		blinking_counter = HALF_SECOND;
 		adjust_duAmber = durationAmber;
 		break;
 	case MODIFY_DURATION_AMBER_MODE:
 		runState = MODIFY_DURATION_GREEN_MODE;
-		blinking_counter = HALF_SECOND / CYCLE;
+		blinking_counter = HALF_SECOND;
 		adjust_duGreen = durationGreen;
 		break;
 	case MODIFY_DURATION_GREEN_MODE:
@@ -132,7 +139,6 @@ void setValue(void){
 		break;
 	}
 }
-
 //This is abstract function. Use for those function below.
 void inputProcessingFSM(void (*processing) (void), const short index){
 	switch(buttonState[index]){
@@ -157,77 +163,108 @@ void inputProcessingFSM(void (*processing) (void), const short index){
 	}
 }
 void handleSetValueButton(void){
-	inputProcessingFSM(setValue, SET_BTN);
+	buttonReading(SET_BTN);
+	inputProcessingFSM(toggleLED, SET_BTN);
+	//inputProcessingFSM(setValue, SET_BTN);
 }
 void handleModifyButton(void){
+	buttonReading(MOD_BTN);
+	inputProcessingFSM(toggleLED, MOD_BTN);
+	/*
 	inputProcessingFSM(modifyingValue, MOD_BTN);
 	//Handle when button hold more than one second
 	//increase `adjusting value` after INCREASING_PERIOD ms
 	if (buttonState[MOD_BTN] == PRESSED_MORE_THAN_ONE_SECOND) {
 		increasing_counter--;
 		if (increasing_counter <= 0) {
-			increasing_counter = INCREASING_PERIOD / CYCLE;
+			increasing_counter = INCREASING_PERIOD;
 			modifyingValue();
 		}
 	} else {
-		increasing_counter = INCREASING_PERIOD / CYCLE;
-	}
+		increasing_counter = INCREASING_PERIOD;
+	}*/
+
 }
 void handleSelectModeButton(void){
-	inputProcessingFSM(changingMode, SEL_BTN);
+	buttonReading(SEL_BTN);
+	inputProcessingFSM(toggleLED, SEL_BTN);
+	//inputProcessingFSM(changingMode, SEL_BTN);
 }
 
+void handlePedestrianButton(void){
+	buttonReading(P_BTN);
+	inputProcessingFSM(toggleLED, P_BTN);
+}
+
+void displayingDuration(uint8_t index){
+	if (light_counter[index] % ONE_SECOND != 0 || light_counter[index] == 0)
+		return;
+
+	char* orientation;
+	if (index == VERTICAL) orientation = "VERTICAL";
+	else orientation = "HORIZONTAL";
+
+	char* led_state_name;
+	switch(ledState[index]){
+	case RED:
+		led_state_name = "RED";
+		break;
+	case AMBER:
+		led_state_name = "AMBER";
+		break;
+	case GREEN:
+		led_state_name = "GREEN";
+		break;
+	}
+
+	uint16_t numberDisplay = (light_counter[index] - 1) / ONE_SECOND;
+
+	sprintf(msg, "%s: %ds: %s\r\n", orientation, numberDisplay, led_state_name);
+	transmitMessage();
+}
+
+
 void trafficLightFSM(const short index){
+	// Display duration via UART.
+	displayingDuration(index);
 	light_counter[index]--;
 	switch (ledState[index]){
 	case RED:
 		//Display only Red LED.
 		//WritePinLED(index, RED);
-
 		//After amount of time, it will switch to Green.
 		if (light_counter[index] <= 0) {
-			light_counter[index] = durationGreen * ONE_SECOND / CYCLE;
+			light_counter[index] = durationGreen * ONE_SECOND;
 			ledState[index] = GREEN;
-
-			msg = "GREEN\r\n";
-			transmitMessage();
 		}
 		break;
 	case AMBER:
 		//Display only Amber LED.
 		//WritePinLED(index, AMBER);
-
 		//After amount of time, it will switch to Red.
 		if (light_counter[index] <= 0) {
-			light_counter[index] = durationRed * ONE_SECOND / CYCLE;
+			light_counter[index] = durationRed * ONE_SECOND;
 			ledState[index] = RED;
-
-			msg = "RED\r\n";
-			transmitMessage();
 		}
+
 		break;
 	case GREEN:
 		//Display only Green LED.
 		//WritePinLED(index, GREEN);
 		//After amount of time, it will switch to Amber.
 		if (light_counter[index] <= 0) {
-			light_counter[index] = durationAmber * ONE_SECOND / CYCLE;
+			light_counter[index] = durationAmber * ONE_SECOND;
 			ledState[index] = AMBER;
-
-			msg = "AMBER\r\n";
-			transmitMessage();
 		}
 		break;
 	}
+
 }
-
-
 
 void runStateFSM(void){
 	switch (runState){
 	case NORMAL_MODE:
 		//Run 2 traffic light FSMs.
-
 		trafficLightFSM(VERTICAL);
 		trafficLightFSM(HORIZONTAL);
 		break;
@@ -235,7 +272,7 @@ void runStateFSM(void){
 		//Blinking Red LED in 0.5s
 		blinking_counter--;
 		if (blinking_counter <= 0) {
-			blinking_counter = HALF_SECOND / CYCLE;
+			blinking_counter = HALF_SECOND;
 			//TogglePinLED(RED);
 		}
 		break;
@@ -243,7 +280,7 @@ void runStateFSM(void){
 		//Blinking Amber LED in 0.5s
 		blinking_counter--;
 		if (blinking_counter <= 0) {
-			blinking_counter = HALF_SECOND / CYCLE;
+			blinking_counter = HALF_SECOND;
 			//TogglePinLED(AMBER);
 		}
 		break;
@@ -251,7 +288,7 @@ void runStateFSM(void){
 		//Blinking Green LED in 0.5s
 		blinking_counter--;
 		if (blinking_counter <= 0) {
-			blinking_counter = HALF_SECOND / CYCLE;
+			blinking_counter = HALF_SECOND;
 			//TogglePinLED(GREEN);
 		}
 		break;

@@ -12,10 +12,11 @@
 #include "input_reading.h"
 #include "global.h"
 #include "string.h"
+#include "stdio.h"
 
 //After we hold modify button more than 1s,
 //it will increase after this milisecond.
-#define INCREASING_PERIOD 	100
+#define INCREASING_PERIOD 	100 / CYCLE
 
 typedef enum{
 	RELEASED,
@@ -41,6 +42,7 @@ void inputProcessingInit(UART_HandleTypeDef* huart);
 void handleSetValueButton(void);
 void handleModifyButton(void);
 void handleSelectModeButton(void);
+void handlePedestrianButton(void);
 
 //change display
 void runStateFSM(void);

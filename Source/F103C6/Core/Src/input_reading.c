@@ -37,14 +37,14 @@ void inputReadingInit(void){
 	for(short i = 0; i < NO_BUTTON; i++){
 		filtered[i] = buffer0[i] = buffer1[i] = BUTTON_RELEASED;
 		flagOneSec[i] = 0;
-		counterOneSec[i] = ONE_SECOND / CYCLE;
+		counterOneSec[i] = ONE_SECOND;
 	}
 }
 
 void buttonReading(const short index){
 	//Save 2 recently states
 	buffer1[index] = buffer0[index];
-	buffer0[index] = HAL_GPIO_ReadPin(BTN_GPIO, BTN_Pin[index]);
+	buffer0[index] = HAL_GPIO_ReadPin(BTN_GPIO[index], BTN_Pin[index]);
 
 	//If all saved states equal -> that's a good reading (filtered)
 	if(buffer1[index] == buffer0[index]){
@@ -56,7 +56,7 @@ void buttonReading(const short index){
 				flagOneSec[index] = 1;
 			}
 		} else {
-			counterOneSec[index] = ONE_SECOND / CYCLE;
+			counterOneSec[index] = ONE_SECOND;
 			flagOneSec[index] = 0;
 		}
 	}
