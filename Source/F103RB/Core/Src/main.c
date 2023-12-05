@@ -62,6 +62,7 @@ static void MX_TIM2_Init(void);
 static void MX_I2C2_Init(void);
 /* USER CODE BEGIN PFP */
 void blinkingLED(void);
+void toggleBuzzer(void);
 void readInputAndProcessing(void);
 /* USER CODE END PFP */
 
@@ -112,6 +113,7 @@ int main(void)
   //SCH_Add_Task(blinkingLED, 10, 1000);
   SCH_Add_Task(readInputAndProcessing, 0, 10);
   SCH_Add_Task(runStateFSM, 10, 10);
+  //SCH_Add_Task(toggleBuzzer, 10, 500);
   //SCH_Add_Task(displayPLED, 20, 20);
 
   HAL_TIM_Base_Start_IT(&htim2);
@@ -295,13 +297,23 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, TL1_B_Pin|LD2_Pin|P_RED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, PLED_RED_Pin|PLED_GREEN_Pin|BUZZER_Pin|TL2_A_Pin
+                          |TL2_B_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, P_REDC5_Pin|P_GREEN_Pin|TL2_A_Pin|TL2_B_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, TL1_B_Pin|LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, TL1_A_Pin|BUZZER_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(TL1_A_GPIO_Port, TL1_A_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : PLED_RED_Pin PLED_GREEN_Pin BUZZER_Pin TL2_A_Pin
+                           TL2_B_Pin */
+  GPIO_InitStruct.Pin = PLED_RED_Pin|PLED_GREEN_Pin|BUZZER_Pin|TL2_A_Pin
+                          |TL2_B_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : MOD_BTN_Pin SEL_BTN_Pin */
   GPIO_InitStruct.Pin = MOD_BTN_Pin|SEL_BTN_Pin;
@@ -309,31 +321,24 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : TL1_B_Pin LD2_Pin P_RED_Pin */
-  GPIO_InitStruct.Pin = TL1_B_Pin|LD2_Pin|P_RED_Pin;
+  /*Configure GPIO pins : TL1_B_Pin LD2_Pin */
+  GPIO_InitStruct.Pin = TL1_B_Pin|LD2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : P_REDC5_Pin P_GREEN_Pin TL2_A_Pin TL2_B_Pin */
-  GPIO_InitStruct.Pin = P_REDC5_Pin|P_GREEN_Pin|TL2_A_Pin|TL2_B_Pin;
+  /*Configure GPIO pin : TL1_A_Pin */
+  GPIO_InitStruct.Pin = TL1_A_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : TL1_A_Pin BUZZER_Pin */
-  GPIO_InitStruct.Pin = TL1_A_Pin|BUZZER_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(TL1_A_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : P_BTN_Pin */
   GPIO_InitStruct.Pin = P_BTN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(P_BTN_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : SET_BTN_Pin */
@@ -350,6 +355,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 }
 void blinkingLED(void){
 	HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+}
+void toggleBuzzer(void){
+	HAL_GPIO_TogglePin(BUZZER_GPIO_Port, BUZZER_Pin);
 }
 void readInputAndProcessing(void){
 	handlePedestrianButton();

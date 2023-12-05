@@ -57,6 +57,12 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define PLED_RED_Pin GPIO_PIN_0
+#define PLED_RED_GPIO_Port GPIOC
+#define PLED_GREEN_Pin GPIO_PIN_1
+#define PLED_GREEN_GPIO_Port GPIOC
+#define BUZZER_Pin GPIO_PIN_2
+#define BUZZER_GPIO_Port GPIOC
 #define MOD_BTN_Pin GPIO_PIN_1
 #define MOD_BTN_GPIO_Port GPIOA
 #define USART_TX_Pin GPIO_PIN_2
@@ -67,18 +73,8 @@ void Error_Handler(void);
 #define TL1_B_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_5
 #define LD2_GPIO_Port GPIOA
-#define P_RED_Pin GPIO_PIN_6
-#define P_RED_GPIO_Port GPIOA
-#define P_REDC5_Pin GPIO_PIN_5
-#define P_REDC5_GPIO_Port GPIOC
 #define TL1_A_Pin GPIO_PIN_0
 #define TL1_A_GPIO_Port GPIOB
-#define BUZZER_Pin GPIO_PIN_13
-#define BUZZER_GPIO_Port GPIOB
-#define P_GREEN_Pin GPIO_PIN_6
-#define P_GREEN_GPIO_Port GPIOC
-#define P_BTN_Pin GPIO_PIN_9
-#define P_BTN_GPIO_Port GPIOC
 #define SEL_BTN_Pin GPIO_PIN_9
 #define SEL_BTN_GPIO_Port GPIOA
 #define TMS_Pin GPIO_PIN_13
@@ -89,6 +85,8 @@ void Error_Handler(void);
 #define TL2_A_GPIO_Port GPIOC
 #define TL2_B_Pin GPIO_PIN_11
 #define TL2_B_GPIO_Port GPIOC
+#define P_BTN_Pin GPIO_PIN_12
+#define P_BTN_GPIO_Port GPIOC
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
 #define SET_BTN_Pin GPIO_PIN_9

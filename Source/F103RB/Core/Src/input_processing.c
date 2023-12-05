@@ -23,9 +23,7 @@ uint8_t adjust_duRed;
 uint8_t adjust_duAmber;
 uint8_t adjust_duGreen;
 
-char msg[64];
 char message[16];
-UART_HandleTypeDef* UART;
 
 //For blinking led when we switch in modify mode.
 int blinking_counter;
@@ -34,13 +32,19 @@ int increasing_counter;
 
 short buzzer_counter;
 
+short pedestrian_led_counter = ONE_SECOND / 4;
+
+void buzzerNoBeep(){
+	HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin, SET);
+}
+
 void resetTrafficLight(void){
-	runState = NORMAL_MODE;
 	pState = SLEEP;
 	ledState[VERTICAL] = GREEN;
 	ledState[HORIZONTAL] = RED;
 	light_counter[VERTICAL]   = durationGreen * ONE_SECOND;
 	light_counter[HORIZONTAL] = durationRed * ONE_SECOND;
+	buzzerNoBeep();
 }
 
 void toggleLED(void){
@@ -50,22 +54,22 @@ void toggleLED(void){
 void displayPLED(void){
 	switch (pState){
 	case SLEEP:
-		HAL_GPIO_WritePin(P_RED_GPIO_Port, P_RED_Pin, 0);
-		HAL_GPIO_WritePin(P_GREEN_GPIO_Port, P_GREEN_Pin, 1);
+		HAL_GPIO_WritePin(PLED_RED_GPIO_Port, PLED_RED_Pin, 0);
+		HAL_GPIO_WritePin(PLED_GREEN_GPIO_Port, PLED_GREEN_Pin, 1);
 		break;
 	case WAIT:
-		HAL_GPIO_WritePin(P_RED_GPIO_Port, P_RED_Pin, 0);
-		HAL_GPIO_WritePin(P_GREEN_GPIO_Port, P_GREEN_Pin, 1);
+		pedestrian_led_counter--;
+		if (pedestrian_led_counter <= 0){
+			pedestrian_led_counter = ONE_SECOND / 4;
+			HAL_GPIO_TogglePin(PLED_RED_GPIO_Port, PLED_RED_Pin);
+		}
+		HAL_GPIO_WritePin(PLED_GREEN_GPIO_Port, PLED_GREEN_Pin, 1);
 		break;
 	case ACROSS:
-		HAL_GPIO_WritePin(P_RED_GPIO_Port, P_RED_Pin, 1);
-		HAL_GPIO_WritePin(P_GREEN_GPIO_Port, P_GREEN_Pin, 0);
+		HAL_GPIO_WritePin(PLED_RED_GPIO_Port, PLED_RED_Pin, 1);
+		HAL_GPIO_WritePin(PLED_GREEN_GPIO_Port, PLED_GREEN_Pin, 0);
 		break;
 	}
-}
-
-void transmitMessage(void){
-	HAL_UART_Transmit(UART, (uint8_t *) msg, strlen(msg), 500);
 }
 
 void inputProcessingInit(UART_HandleTypeDef* huart)
@@ -84,14 +88,9 @@ void inputProcessingInit(UART_HandleTypeDef* huart)
 	light_counter[VERTICAL]   = durationGreen * ONE_SECOND;
 	light_counter[HORIZONTAL] = durationRed * ONE_SECOND;
 
+	runState = NORMAL_MODE;
 	resetTrafficLight();
 
-	// Take UART from main.c
-	UART = huart;
-
-	// Inform message
-	sprintf(msg, "<Pedestrian Project>\r\n");
-	transmitMessage();
 }
 
 void increaseOne(uint8_t* duration){
@@ -149,7 +148,7 @@ void changingMode(void){
 		runState = MODIFY_DURATION_RED_MODE;
 		blinking_counter = HALF_SECOND;
 		adjust_duRed = durationRed;
-
+		resetTrafficLight();
 
 		lcd_clear();
 		lcd_put_cur(0, 0);
@@ -164,7 +163,7 @@ void changingMode(void){
 		runState = MODIFY_DURATION_AMBER_MODE;
 		blinking_counter = HALF_SECOND;
 		adjust_duAmber = durationAmber;
-
+		resetTrafficLight();
 
 		lcd_clear();
 		lcd_put_cur(0, 0);
@@ -179,7 +178,7 @@ void changingMode(void){
 		runState = MODIFY_DURATION_GREEN_MODE;
 		blinking_counter = HALF_SECOND;
 		adjust_duGreen = durationGreen;
-
+		resetTrafficLight();
 
 		lcd_clear();
 		lcd_put_cur(0, 0);
@@ -239,9 +238,12 @@ void setValue(void){
 	}
 }
 void handlePedestrianPressedEvent(){
+	if (runState != NORMAL_MODE) return;
 	switch(pState){
 	case SLEEP:
-		if (ledState[VERTICAL] == GREEN || ledState[VERTICAL] == AMBER) {
+		if (ledState[VERTICAL] == GREEN || ledState[VERTICAL] == AMBER
+				|| (ledState[VERTICAL] == RED && light_counter[VERTICAL] < 8 * ONE_SECOND)
+		) {
 			pState = WAIT;
 		} else {
 			pState = ACROSS;
@@ -305,43 +307,24 @@ void handleSelectModeButton(void){
 
 void handlePedestrianButton(void){
 	buttonReading(P_BTN);
-	inputProcessingFSM(toggleLED, P_BTN);
-	//.inputProcessingFSM(handlePedestrianPressedEvent, P_BTN);
+	//.inputProcessingFSM(toggleLED, P_BTN);
+	inputProcessingFSM(handlePedestrianPressedEvent, P_BTN);
 }
 
-void buzzerNoBeep(){
-	//HAL_GPIO_WritePin(BUZZER_GPIO_Port, BUZZER_Pin);
-	buzzer_counter = ONE_SECOND / 1;
-}
 
-void buzzerToggleBeep(){
-	//HAL_GPIO_TogglePin(BUZZER_GPIO_Port, BUZZER_Pin);
-}
-
-uint8_t divisionFactor(){
-	uint8_t temp = durationRed / 8 * ONE_SECOND;
-	if (temp >= light_counter[VERTICAL]){
-		return 8;
+uint16_t setCounterForBuzzer(){
+	uint8_t counter = light_counter[VERTICAL] / ONE_SECOND;
+	if (counter <= 3){
+		return ONE_SECOND / 20;
 	}
-	else if (temp * 2 >= light_counter[VERTICAL]){
-		return 7;
+	else if (counter <= 6){
+		return ONE_SECOND / 10;
 	}
-	else if (temp * 3 >= light_counter[VERTICAL]){
-		return 6;
+	else if (counter <= 12){
+		return ONE_SECOND / 5;
 	}
-	else if (temp * 4 >= light_counter[VERTICAL]){
-		return 5;
-	}
-	else if (temp * 5 >= light_counter[VERTICAL]){
-		return 4;
-	}
-	else if (temp * 6 >= light_counter[VERTICAL]){
-		return 3;
-	}
-	else if (temp * 7 >= light_counter[VERTICAL]){
-		return 2;
-	} else {
-		return 1;
+	else {
+		return ONE_SECOND / 2;
 	}
 
 }
@@ -419,7 +402,7 @@ void pedestrianStateFSM(void){
 		break;
 	case WAIT:
 		buzzerNoBeep();
-		if (ledState[VERTICAL] == RED){
+		if (ledState[VERTICAL] == RED && light_counter[VERTICAL] >= 8 * ONE_SECOND){
 			pState = ACROSS;
 		}
 		break;
@@ -432,8 +415,8 @@ void pedestrianStateFSM(void){
 		if (ledState[VERTICAL] == RED) {
 			buzzer_counter--;
 			if (buzzer_counter <= 0){
-				buzzer_counter = ONE_SECOND / divisionFactor();
-				buzzerToggleBeep();
+				buzzer_counter = setCounterForBuzzer();
+				HAL_GPIO_TogglePin(BUZZER_GPIO_Port, BUZZER_Pin);
 			}
 		}
 		break;
@@ -443,14 +426,13 @@ void pedestrianStateFSM(void){
 }
 
 void runStateFSM(void){
-	//sprintf(msg, "Hello\r\n");
-	//transmitMessage();
 	switch (runState){
 		case NORMAL_MODE:
 		//Run 2 traffic light FSMs.
 		trafficLightFSM(VERTICAL);
 		trafficLightFSM(HORIZONTAL);
-		//pedestrianStateFSM();
+		pedestrianStateFSM();
+		displayPLED();
 		break;
 	case MODIFY_DURATION_RED_MODE:
 		//Blinking Red LED in 0.5s
